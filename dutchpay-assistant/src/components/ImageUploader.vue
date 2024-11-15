@@ -65,6 +65,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useReceiptStore } from '../stores/receiptStore'
 /**
  * 참고: https://github.com/naptha/tesseract.js#tesseractjs
  * 1. createWorker
@@ -73,6 +74,8 @@ import { ref, onMounted } from 'vue'
  * TypeScript 타입 정의를 위한 인터페이스
  */
 import { createWorker } from 'tesseract.js'
+
+const receiptStore = useReceiptStore()
 
 // 상태 관리
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -196,28 +199,147 @@ const captureImage = () => {
 }
 
 /**
+ * 금액 추출
+ * @param text OCR로 추출된 텍스트
+ * @returns 추출된 최대 금액
+ */
+ const extractAmount = (text: string): number => {
+  // 금액 관련 키워드 (오인식 케이스 포함)
+  const amountKeywords = [
+    '금액',
+    '합계',
+    '함계', // OCR 오인식 케이스
+    '총액',
+    '승인',
+    '결제',
+    '판매',
+    'Sub Total',  // 영어로 표기된 경우
+    '소계',
+    '받은 돈',
+    '결제금액',
+    '청구금액',
+    '최종금액',
+    '할인후금액',
+    '과세금액',
+    '면세금액',
+    '부가세'
+  ]
+
+  // 금액이 아닌 것으로 예상되는 패턴
+  const excludePatterns = [
+    /\d{2,4}-\d{2,4}-\d{2,4}/,    // 전화번호, 카드번호 패턴
+    /\d{4}-\d{2}-\d{2}/,          // 날짜 패턴
+    /\d{3}-\d{2}-\d{5}/,          // 사업자번호 패턴
+    /^\d{8,}$/,                    // 8자리 이상의 긴 숫자
+    /^\d{1,2}$/,                   // 1-2자리 숫자 (수량 등)
+    /\d{2}:\d{2}(?::\d{2})?/,     // 시간 패턴 (15:30 또는 15:30:00)
+    /\d{6}-\d{2}-\d{6}/,          // 사업자등록번호 패턴
+    /주문번호.*\d+/,               // 주문번호
+    /\d+개/,                       // 수량 표시
+    /^\d{4}년/,                    // 연도 표시
+    /가맹점\s*번호.*\d+/           // 가맹점 번호
+  ]
+  // 숫자를 정제하는 헬퍼 함수
+  const cleanNumber = (str: string): number => {
+    // 숫자와 쉼표만 추출
+    const cleaned = str.replace(/[^0-9,\.]/g, '')
+    
+    // 소수점이 있는 경우 처리
+    if (cleaned.includes('.')) {
+      const parts = cleaned.split('.')
+      if (parts[1].match(/^0+$/)) {
+        return parseInt(parts[0].replace(/,/g, '') + parts[1])
+      }
+    }
+    
+    // 끝이 쉼표나 점으로 끝나는 경우
+    if (cleaned.endsWith(',') || cleaned.endsWith('.')) {
+      return parseInt(cleaned.replace(/[,\.]/g, '') + '000')
+    }
+    
+    const number = parseInt(cleaned.replace(/,/g, ''))
+    
+    // 1000 미만의 숫자가 나온 경우, 이전 라인들의 숫자들을 확인
+    if (number < 1000) {
+      const lines = text.split('\n')
+      const currentLineIndex = lines.findIndex(line => line.includes(str))
+      if (currentLineIndex > 0) {
+        // 이전 3개 라인 내에서 숫자 찾기
+        for (let i = 1; i <= 3; i++) {
+          if (currentLineIndex - i >= 0) {
+            const prevLine = lines[currentLineIndex - i]
+            const prevNumbers = prevLine.match(/[\d,\.]{3,}/g)
+            if (prevNumbers) {
+              const lastPrevNumber = parseInt(prevNumbers[prevNumbers.length - 1].replace(/[,\.]/g, ''))
+              if (lastPrevNumber >= 1000) {
+                // 이전 라인의 천단위 숫자를 현재 숫자의 천단위로 사용
+                return lastPrevNumber - (lastPrevNumber % 1000) + number
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    return number
+  }
+
+  const amounts: number[] = []
+  const amountSources: string[] = []
+
+  // 각 줄별로 처리
+  const lines = text.split('\n').map(line => line.trim())
+  
+  // 1단계: 명확한 금액 키워드가 있는 라인 처리
+  lines.forEach((line, index) => {
+    if (amountKeywords.some(keyword => line.includes(keyword))) {
+      // 금액 패턴 매칭
+      const matches = line.match(/[\d,\.]{1,}/g) // 1자리 숫자부터 매칭
+      if (matches) {
+        const number = cleanNumber(matches[matches.length - 1]) // 라인의 마지막 숫자 사용
+        if (!isNaN(number) && number > 0 && number < 10000000 &&
+            !excludePatterns.some(pattern => pattern.test(String(number)))) {
+          amounts.push(number)
+          amountSources.push(line)
+        }
+      }
+    }
+  })
+
+  // 디버깅을 위한 상세 로그
+  console.log('=== 금액 추출 결과 ===')
+  amounts.forEach((amount, index) => {
+    console.log(`${amount.toLocaleString()}원 (출처: ${amountSources[index]})`)
+  })
+  console.log('=====================')
+  
+  return amounts.length > 0 ? Math.max(...amounts) : 0
+}
+
+/**
  * 이미지 처리 (Tesseract)
  */
-const processImage = async () => {
+ const processImage = async () => {
   isProcessing.value = true
   try {
     const worker = await createWorker('kor')
     const result = await worker.recognize(previewUrl.value)
     
-    // 전체 텍스트의 평균 신뢰도 계산
+    console.log(result);
+    
     const confidence = result.data.confidence
     const extractedText = result.data.text
 
-    // 신뢰도에 따른 처리
+    // 신뢰도 검증
     if (confidence < 65) {
-      alert('텍스트 인식 품질이 좋지 않습니다. 다시 촬영해주세요.')
+      alert(`텍스트 인식 품질이 좋지 않습니다. (신뢰도: ${confidence.toFixed(1)}%)\n다시 촬영해주세요.`)
       return
     }
 
-    // 영수증 관련 키워드 체크 (간단한 검증)
+    // 영수증 키워드 검증
     const receiptKeywords = ['총액', '합계', '금액', '원', '부가세', 'VAT']
     const hasReceiptKeywords = receiptKeywords.some(keyword => 
-      extractedText.includes(keyword)
+      extractedText.toLowerCase().includes(keyword.toLowerCase())
     )
 
     if (!hasReceiptKeywords) {
@@ -225,9 +347,16 @@ const processImage = async () => {
       return
     }
 
-    console.log('추출된 텍스트:', extractedText)
-    console.log('인식 신뢰도:', confidence + '%')
+    // 금액 추출
+    const maxAmount = extractAmount(extractedText)
+    if (maxAmount === 0) {
+      alert('금액을 찾을 수 없습니다. 다시 시도해주세요.')
+      return
+    }
 
+    // 스토어에 데이터 저장
+    receiptStore.setReceiptData(maxAmount, confidence, extractedText)
+    
     await worker.terminate()
   } catch (error) {
     console.error('텍스트 추출 중 에러:', error)
