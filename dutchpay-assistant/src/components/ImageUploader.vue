@@ -65,6 +65,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useReceiptStore } from '../stores/receiptStore'
 /**
  * 참고: https://github.com/naptha/tesseract.js#tesseractjs
@@ -75,6 +76,7 @@ import { useReceiptStore } from '../stores/receiptStore'
  */
 import { createWorker } from 'tesseract.js'
 
+const router = useRouter()
 const receiptStore = useReceiptStore()
 
 // 상태 관리
@@ -357,6 +359,9 @@ const captureImage = () => {
     receiptStore.setReceiptData(maxAmount, confidence, extractedText)
     
     await worker.terminate()
+
+    // 더치페이 폼으로 라우팅
+    router.push('/dutch-pay')
   } catch (error) {
     console.error('텍스트 추출 중 에러:', error)
     alert('텍스트 추출에 실패했습니다.')
