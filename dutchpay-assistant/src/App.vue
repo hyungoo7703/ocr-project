@@ -2,13 +2,9 @@
   <div id="app">
     <h1>더치페이 도우미</h1>
     <h2>(더드미)</h2>
-    <ImageUploader />
+    <router-view></router-view>
   </div>
 </template>
-
-<script setup lang="ts">
-import ImageUploader from './components/ImageUploader.vue'
-</script>
 
 <style>
 #app {
