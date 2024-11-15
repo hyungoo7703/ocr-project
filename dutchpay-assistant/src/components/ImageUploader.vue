@@ -239,6 +239,7 @@ const captureImage = () => {
     /^\d{4}년/,                    // 연도 표시
     /가맹점\s*번호.*\d+/           // 가맹점 번호
   ]
+
   // 숫자를 정제하는 헬퍼 함수
   const cleanNumber = (str: string): number => {
     // 숫자와 쉼표만 추출
@@ -290,8 +291,8 @@ const captureImage = () => {
   // 각 줄별로 처리
   const lines = text.split('\n').map(line => line.trim())
   
-  // 1단계: 명확한 금액 키워드가 있는 라인 처리
-  lines.forEach((line, index) => {
+  // 명확한 금액 키워드가 있는 라인 처리
+  lines.forEach((line) => {
     if (amountKeywords.some(keyword => line.includes(keyword))) {
       // 금액 패턴 매칭
       const matches = line.match(/[\d,\.]{1,}/g) // 1자리 숫자부터 매칭
@@ -324,8 +325,6 @@ const captureImage = () => {
   try {
     const worker = await createWorker('kor')
     const result = await worker.recognize(previewUrl.value)
-    
-    console.log(result);
     
     const confidence = result.data.confidence
     const extractedText = result.data.text
