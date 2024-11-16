@@ -57,11 +57,11 @@
     <!-- 카메라 뷰 영역 -->
     <div v-if="showCamera" class="camera-view">
       <video 
-        ref="videoElement" 
-        autoplay 
-        playsinline 
+        ref="videoElement"
+        playsinline
+        autoplay
         muted
-        style="transform: scaleX(-1)"
+        class="camera-video"
       ></video>
       <div class="camera-controls">
         <button @click="captureImage" class="capture-button">촬영하기</button>
@@ -188,11 +188,7 @@ const checkCameraPermission = async () => {
  */
 const startCamera = async () => {
   try {
-    // 먼저 권한 확인
-    const hasPermission = await checkCameraPermission()
-    console.log('카메라 권한 있음:', hasPermission)
-
-    // 기존 스트림이 있다면 정리
+    // 기존 스트림 정리
     if (mediaStream) {
       mediaStream.getTracks().forEach(track => track.stop())
       mediaStream = null
@@ -203,76 +199,44 @@ const startCamera = async () => {
       videoElement.value.srcObject = null
     }
 
-    // 카메라 옵션 설정
+    // 모바일 환경에서의 카메라 설정
     const constraints = {
       audio: false,
       video: {
         facingMode: { exact: 'environment' }, // 후면 카메라 강제
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
+        width: { ideal: 1280 }, // 해상도 조정
+        height: { ideal: 720 }
       }
     }
 
+    // 먼저 후면 카메라로 시도
     try {
-      // 후면 카메라로 시도
       mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
     } catch (err) {
-      console.log('후면 카메라 실패, 전면 카메라 시도')
-      // 후면 카메라 실패시 일반 카메라로 재시도
+      console.log('후면 카메라 실패, 기본 카메라로 시도')
+      // 후면 카메라 실패시 기본 설정으로 재시도
       mediaStream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: false
       })
     }
 
-    if (videoElement.value && mediaStream) {
-      videoElement.value.srcObject = mediaStream
-      
-      // 비디오 로드 완료 후 처리
-      videoElement.value.onloadedmetadata = () => {
-        console.log('비디오 메타데이터 로드됨')
-        if (videoElement.value) {
-          videoElement.value.play()
-            .then(() => {
-              console.log('비디오 재생 시작')
-              showCamera.value = true
-            })
-            .catch(error => {
-              console.error('비디오 재생 실패:', error)
-            })
-        }
-      }
-
-      // 트랙 정보 로깅
-      mediaStream.getTracks().forEach(track => {
-        console.log('트랙 정보:', track.label, track.enabled, track.readyState)
-      })
+    if (!videoElement.value) {
+      throw new Error('비디오 요소를 찾을 수 없습니다.')
     }
+
+    // 비디오 요소에 스트림 연결
+    videoElement.value.srcObject = mediaStream
+    videoElement.value.setAttribute('playsinline', 'true')
+    videoElement.value.setAttribute('autoplay', 'true')
+    
+    // iOS Safari 대응
+    await videoElement.value.play()
+    showCamera.value = true
 
   } catch (error) {
     console.error('카메라 시작 중 에러:', error)
-    let errorMessage = '카메라를 시작할 수 없습니다.'
-
-    if (error instanceof DOMException) {
-      switch (error.name) {
-        case 'NotAllowedError':
-          errorMessage = '카메라 접근이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.'
-          break
-        case 'NotFoundError':
-          errorMessage = '카메라를 찾을 수 없습니다.'
-          break
-        case 'NotReadableError':
-          errorMessage = '카메라에 접근할 수 없습니다. 다른 앱에서 카메라를 사용 중인지 확인해주세요.'
-          break
-        case 'OverconstrainedError':
-          errorMessage = '요청한 카메라 설정을 지원하지 않습니다.'
-          break
-        default:
-          errorMessage = `카메라 오류: ${error.message}`
-      }
-    }
-
-    alert(errorMessage)
+    alert('카메라를 시작할 수 없습니다. 브라우저 설정을 확인해주세요.')
     showCamera.value = false
   }
 }
@@ -593,13 +557,52 @@ const resetImage = () => {
 }
 
 .camera-view {
-  margin: 20px 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .camera-view video {
   width: 100%;
-  max-width: 500px;
-  border-radius: 8px;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-controls {
+  position: fixed;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.capture-button,
+.cancel-button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 25px;
+  font-weight: bold;
+  color: white;
+  z-index: 1001;
+}
+
+.capture-button {
+  background-color: #4CAF50;
+}
+
+.cancel-button {
+  background-color: #f44336;
 }
 
 button:disabled {
@@ -609,15 +612,5 @@ button:disabled {
 
 button:hover:not(:disabled) {
   opacity: 0.9;
-}
-
-.camera-view button {
-  margin: 10px;
-  padding: 10px 20px;
-  background-color: #2196F3;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
 }
 </style>
