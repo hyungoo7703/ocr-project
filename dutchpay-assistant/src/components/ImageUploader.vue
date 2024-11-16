@@ -99,6 +99,13 @@ onMounted(() => {
   checkCamera()
 })
 
+onUnmounted(() => {
+  // 컴포넌트 언마운트 시 카메라 정리
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(track => track.stop())
+  }
+})
+
 /**
  * 카메라 사용 가능 여부 체크
  */
@@ -159,16 +166,42 @@ const handleImage = (file: File) => {
  */
 const startCamera = async () => {
   try {
-    mediaStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' }
-    })
+    // 기존 스트림이 있다면 정리
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(track => track.stop())
+    }
+
+    // 카메라 옵션 상세 설정
+    const constraints = {
+      video: {
+        facingMode: 'environment', // 후면 카메라 우선
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      }
+    }
+
+    // 카메라 스트림 요청
+    mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
+    
     if (videoElement.value) {
       videoElement.value.srcObject = mediaStream
-      showCamera.value = true
+      videoElement.value.onloadedmetadata = () => {
+        videoElement.value?.play()
+        showCamera.value = true
+      }
     }
+
   } catch (error) {
     console.error('카메라 시작 중 에러:', error)
-    alert('카메라를 시작할 수 없습니다.')
+    if (error instanceof DOMException) {
+      if (error.name === 'NotAllowedError') {
+        alert('카메라 접근이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.')
+      } else if (error.name === 'NotFoundError') {
+        alert('카메라를 찾을 수 없습니다.')
+      } else {
+        alert('카메라를 시작할 수 없습니다: ' + error.message)
+      }
+    }
   }
 }
 
@@ -182,6 +215,7 @@ const stopCamera = () => {
   }
   showCamera.value = false
 }
+
 /**
  * 이미지 캡처
  */
