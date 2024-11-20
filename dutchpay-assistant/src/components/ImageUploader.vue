@@ -174,11 +174,15 @@ const handleImage = (file: File) => {
  */
 const checkCameraPermission = async () => {
   try {
-    const result = await navigator.permissions.query({ name: 'camera' as PermissionName })
-    console.log('카메라 권한 상태:', result.state)
-    return result.state === 'granted'
+    // 권한 상태 확인
+    const permissionStatus = await navigator.permissions.query({ 
+      name: 'camera' as PermissionName 
+    })
+    
+    console.log('카메라 권한 상태:', permissionStatus.state)
+    return permissionStatus.state === 'granted'
   } catch (error) {
-    console.error('권한 확인 중 에러:', error)
+    console.log('권한 확인 실패:', error)
     return false
   }
 }
@@ -188,33 +192,34 @@ const checkCameraPermission = async () => {
  */
 const startCamera = async () => {
   try {
+    // 먼저 권한 상태 확인
+    const hasPermission = await checkCameraPermission()
+    if (!hasPermission) {
+      console.log('카메라 권한 요청 필요')
+    }
+
     // 기존 스트림 정리
     if (mediaStream) {
       mediaStream.getTracks().forEach(track => track.stop())
       mediaStream = null
     }
 
-    // 비디오 요소 초기화
-    if (videoElement.value) {
-      videoElement.value.srcObject = null
-    }
-
-    // 모바일 환경에서의 카메라 설정
+    // 모바일 환경에 맞는 제약 조건
     const constraints = {
       audio: false,
       video: {
-        facingMode: { exact: 'environment' }, // 후면 카메라 강제
-        width: { ideal: 1280 }, // 해상도 조정
+        facingMode: { ideal: 'environment' }, // environment로 변경
+        width: { ideal: 1280 },
         height: { ideal: 720 }
       }
     }
 
-    // 먼저 후면 카메라로 시도
     try {
       mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
+      console.log('카메라 스트림 획득 성공')
     } catch (err) {
       console.log('후면 카메라 실패, 기본 카메라로 시도')
-      // 후면 카메라 실패시 기본 설정으로 재시도
+      // 기본 설정으로 재시도
       mediaStream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: false
@@ -222,21 +227,44 @@ const startCamera = async () => {
     }
 
     if (!videoElement.value) {
-      throw new Error('비디오 요소를 찾을 수 없습니다.')
+      throw new Error('비디오 엘리먼트를 찾을 수 없습니다')
     }
 
-    // 비디오 요소에 스트림 연결
     videoElement.value.srcObject = mediaStream
     videoElement.value.setAttribute('playsinline', 'true')
-    videoElement.value.setAttribute('autoplay', 'true')
     
-    // iOS Safari 대응
+    // iOS Safari를 위한 설정
     await videoElement.value.play()
-    showCamera.value = true
+      .then(() => {
+        console.log('비디오 재생 시작')
+        showCamera.value = true
+      })
+      .catch(error => {
+        console.error('비디오 재생 실패:', error)
+        throw error
+      })
 
   } catch (error) {
     console.error('카메라 시작 중 에러:', error)
-    alert('카메라를 시작할 수 없습니다. 브라우저 설정을 확인해주세요.')
+    let errorMessage = '카메라를 시작할 수 없습니다.'
+
+    if (error instanceof DOMException) {
+      switch (error.name) {
+        case 'NotAllowedError':
+          errorMessage = '카메라 접근이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.'
+          break
+        case 'NotFoundError':
+          errorMessage = '카메라를 찾을 수 없습니다.'
+          break
+        case 'NotReadableError':
+          errorMessage = '카메라에 접근할 수 없습니다. 다른 앱에서 카메라를 사용 중인지 확인해주세요.'
+          break
+        default:
+          errorMessage = `카메라 오류: ${error.message}`
+      }
+    }
+
+    alert(errorMessage)
     showCamera.value = false
   }
 }
