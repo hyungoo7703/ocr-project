@@ -2,21 +2,18 @@
   <div class="image-uploader">
     <!-- 업로드 가이드 섹션 -->
     <div class="upload-guide">
-      <h3>영수증 촬영/업로드 가이드</h3>
-      <p>더 정확한 인식을 위해 아래 가이드를 참고해주세요:</p>
+      <h3>업로드 및 입력 가이드</h3>
+      <p>업로드시 영수증 인식이 잘 되도록 아래 가이드를 참고해주세요:</p>
       <ul>
-        <li>영수증이 프레임 안에 완전히 들어오게 해주세요</li>
-        <li>가능한 정면에서 촬영해주세요</li>
-        <li>그림자가 생기지 않도록 해주세요</li>
+        <li>영수증 전체가 잘 보이도록 해주세요</li>
+        <li>정면에서 촬영된 사진을 업로드해주세요</li>
+        <li>빛 반사나 그림자가 없도록 해주세요</li>
       </ul>
+      <p>입력시에는 총 금액을 입력한 후 다음 절차를 진행하면 됩니다.</p>
     </div>
 
     <!-- 파일 업로드 영역 -->
-    <div 
-      class="upload-area"
-      @dragover.prevent
-      @drop.prevent="handleDrop"
-    >
+    <div class="upload-area">
       <div v-if="!previewUrl" class="upload-placeholder">
         <input
           type="file"
@@ -25,18 +22,32 @@
           @change="handleFileSelect"
           class="file-input"
         />
-        
-        <div class="upload-buttons">
+
+        <div class="input-container">
           <button @click="triggerFileInput" class="upload-button">
             사진 업로드
           </button>
-          <button 
-            v-if="isMobile && hasCamera" 
-            @click="startCamera" 
+          <!-- <button
+            v-if="isMobile && hasCamera"
+            @click="startCamera"
             class="camera-button"
-          >
-            카메라로 촬영
-          </button>
+            >
+              카메라로 촬영
+            </button> -->
+
+          <div class="divider">또는</div>
+
+          <div class="manual-input">
+            <input
+              type="number"
+              v-model="manualAmount"
+              placeholder="금액을 직접 입력하세요"
+              class="amount-field"
+            />
+            <button @click="handleManualAmount" class="submit-button">
+              입력하기
+            </button>
+          </div>
         </div>
       </div>
 
@@ -44,7 +55,11 @@
       <div v-else class="preview-container">
         <img :src="previewUrl" alt="Preview" class="preview-image" />
         <div class="preview-actions">
-          <button @click="processImage" :disabled="isProcessing" class="process-button">
+          <button
+            @click="processImage"
+            :disabled="isProcessing"
+            class="process-button"
+          >
             {{ isProcessing ? '처리중...' : '텍스트 추출하기' }}
           </button>
           <button @click="resetImage" class="reupload-button">
@@ -55,7 +70,7 @@
     </div>
 
     <!-- 카메라 뷰 영역 -->
-    <div v-if="showCamera" class="camera-view">
+    <!-- <div v-if="showCamera" class="camera-view">
       <video 
         ref="videoElement"
         playsinline
@@ -67,7 +82,7 @@
         <button @click="captureImage" class="capture-button">촬영하기</button>
         <button @click="stopCamera" class="cancel-button">취소</button>
       </div>
-    </div>
+    </div> -->
   </div>
 </template>
 
@@ -89,43 +104,45 @@ const receiptStore = useReceiptStore()
 
 // 상태 관리
 const fileInput = ref<HTMLInputElement | null>(null)
-const videoElement = ref<HTMLVideoElement | null>(null)
+const manualAmount = ref<number | null>(null)
+// const videoElement = ref<HTMLVideoElement | null>(null)
 const previewUrl = ref<string>('')
-const showCamera = ref(false)
+// const showCamera = ref(false)
 const isProcessing = ref(false)
-const isMobile = ref(false)
-const hasCamera = ref(false)
+// const isMobile = ref(false)
+// const hasCamera = ref(false)
 
 // 카메라 스트림 저장
-let mediaStream: MediaStream | null = null
+// let mediaStream: MediaStream | null = null
 
 onMounted(() => {
   //모바일 체크
-  isMobile.value = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-    navigator.userAgent
-  )
-  checkCamera()
+  // isMobile.value =
+  //   /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+  //     navigator.userAgent,
+  //   )
+  // checkCamera()
 })
 
 onUnmounted(() => {
   // 컴포넌트 언마운트 시 카메라 정리
-  if (mediaStream) {
-    mediaStream.getTracks().forEach(track => track.stop())
-  }
+  // if (mediaStream) {
+  //   mediaStream.getTracks().forEach(track => track.stop())
+  // }
 })
 
 /**
  * 카메라 사용 가능 여부 체크
  */
-const checkCamera = async () => {
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices()
-    hasCamera.value = devices.some(device => device.kind === 'videoinput')
-  } catch (error) {
-    console.error('카메라 체크 중 에러:', error)
-    hasCamera.value = false
-  }
-}
+// const checkCamera = async () => {
+//   try {
+//     const devices = await navigator.mediaDevices.enumerateDevices()
+//     hasCamera.value = devices.some(device => device.kind === 'videoinput')
+//   } catch (error) {
+//     console.error('카메라 체크 중 에러:', error)
+//     hasCamera.value = false
+//   }
+// }
 
 /**
  * 파일 입력 트리거
@@ -136,24 +153,13 @@ const triggerFileInput = () => {
 
 /**
  * 파일 선택 처리
- * @param event 
+ * @param event
  */
 const handleFileSelect = (event: Event) => {
   const target = event.target as HTMLInputElement
   if (target.files && target.files[0]) {
     const file = target.files[0]
     handleImage(file)
-  }
-}
-
-/**
- * 드래그 앤 드롭 처리
- * @param event 
- */
-const handleDrop = (event: DragEvent) => {
-  const files = event.dataTransfer?.files
-  if (files && files[0]) {
-    handleImage(files[0])
   }
 }
 
@@ -169,141 +175,167 @@ const handleImage = (file: File) => {
   previewUrl.value = URL.createObjectURL(file)
 }
 
+// 수동 입력 처리
+const handleManualAmount = () => {
+  if (!manualAmount.value) {
+    alert('금액을 입력해주세요.')
+    return
+  }
+
+  if (manualAmount.value <= 0) {
+    alert('0원 이상의 금액을 입력해주세요.')
+    return
+  }
+
+  if (manualAmount.value >= 10000000) {
+    alert('1천만원 미만의 금액만 입력 가능합니다.')
+    return
+  }
+
+  // 스토어에 데이터 저장 (수동 입력은 100% 신뢰도로 저장)
+  receiptStore.setReceiptData(manualAmount.value, 100, '수동 입력')
+
+  // 더치페이 폼으로 라우팅
+  router.push('/dutch-pay')
+}
+
 /**
  * 카메라 권한 확인
  */
-const checkCameraPermission = async () => {
-  try {
-    // 권한 상태 확인
-    const permissionStatus = await navigator.permissions.query({ 
-      name: 'camera' as PermissionName 
-    })
-    
-    console.log('카메라 권한 상태:', permissionStatus.state)
-    return permissionStatus.state === 'granted'
-  } catch (error) {
-    console.log('권한 확인 실패:', error)
-    return false
-  }
-}
+// const checkCameraPermission = async () => {
+//   try {
+//     // 권한 상태 확인
+//     const permissionStatus = await navigator.permissions.query({
+//       name: 'camera' as PermissionName,
+//     })
+
+//     console.log('카메라 권한 상태:', permissionStatus.state)
+//     return permissionStatus.state === 'granted'
+//   } catch (error) {
+//     console.log('권한 확인 실패:', error)
+//     return false
+//   }
+// }
 
 /**
  * 카메라 시작
  */
-const startCamera = async () => {
-  try {
-    // 먼저 권한 상태 확인
-    const hasPermission = await checkCameraPermission()
-    if (!hasPermission) {
-      console.log('카메라 권한 요청 필요')
-    }
+// const startCamera = async () => {
+//   try {
+//     // 먼저 권한 상태 확인
+//     const hasPermission = await checkCameraPermission()
+//     if (!hasPermission) {
+//       console.log('카메라 권한 요청 필요')
+//     }
 
-    // 기존 스트림 정리
-    if (mediaStream) {
-      mediaStream.getTracks().forEach(track => track.stop())
-      mediaStream = null
-    }
+//     // 기존 스트림 정리
+//     if (mediaStream) {
+//       mediaStream.getTracks().forEach(track => track.stop())
+//       mediaStream = null
+//     }
 
-    // 모바일 환경에 맞는 제약 조건
-    const constraints = {
-      audio: false,
-      video: {
-        facingMode: { ideal: 'environment' }, // environment로 변경
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
-      }
-    }
+//     // 모바일 환경에 맞는 제약 조건
+//     const constraints = {
+//       audio: false,
+//       video: {
+//         facingMode: { ideal: 'environment' }, // environment로 변경
+//         width: { ideal: 1280 },
+//         height: { ideal: 720 },
+//       },
+//     }
 
-    try {
-      mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
-      console.log('카메라 스트림 획득 성공')
-    } catch (err) {
-      console.log('후면 카메라 실패, 기본 카메라로 시도')
-      // 기본 설정으로 재시도
-      mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: false
-      })
-    }
+//     try {
+//       mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
+//       console.log('카메라 스트림 획득 성공')
+//     } catch (err) {
+//       console.log('후면 카메라 실패, 기본 카메라로 시도')
+//       // 기본 설정으로 재시도
+//       mediaStream = await navigator.mediaDevices.getUserMedia({
+//         video: true,
+//         audio: false,
+//       })
+//     }
 
-    if (!videoElement.value) {
-      throw new Error('비디오 엘리먼트를 찾을 수 없습니다')
-    }
+//     if (!videoElement.value) {
+//       throw new Error('비디오 엘리먼트를 찾을 수 없습니다')
+//     }
 
-    videoElement.value.srcObject = mediaStream
-    videoElement.value.setAttribute('playsinline', 'true')
-    
-    // iOS Safari를 위한 설정
-    await videoElement.value.play()
-      .then(() => {
-        console.log('비디오 재생 시작')
-        showCamera.value = true
-      })
-      .catch(error => {
-        console.error('비디오 재생 실패:', error)
-        throw error
-      })
+//     videoElement.value.srcObject = mediaStream
+//     videoElement.value.setAttribute('playsinline', 'true')
 
-  } catch (error) {
-    console.error('카메라 시작 중 에러:', error)
-    let errorMessage = '카메라를 시작할 수 없습니다.'
+//     // iOS Safari를 위한 설정
+//     await videoElement.value
+//       .play()
+//       .then(() => {
+//         console.log('비디오 재생 시작')
+//         showCamera.value = true
+//       })
+//       .catch(error => {
+//         console.error('비디오 재생 실패:', error)
+//         throw error
+//       })
+//   } catch (error) {
+//     console.error('카메라 시작 중 에러:', error)
+//     let errorMessage = '카메라를 시작할 수 없습니다.'
 
-    if (error instanceof DOMException) {
-      switch (error.name) {
-        case 'NotAllowedError':
-          errorMessage = '카메라 접근이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.'
-          break
-        case 'NotFoundError':
-          errorMessage = '카메라를 찾을 수 없습니다.'
-          break
-        case 'NotReadableError':
-          errorMessage = '카메라에 접근할 수 없습니다. 다른 앱에서 카메라를 사용 중인지 확인해주세요.'
-          break
-        default:
-          errorMessage = `카메라 오류: ${error.message}`
-      }
-    }
+//     if (error instanceof DOMException) {
+//       switch (error.name) {
+//         case 'NotAllowedError':
+//           errorMessage =
+//             '카메라 접근이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.'
+//           break
+//         case 'NotFoundError':
+//           errorMessage = '카메라를 찾을 수 없습니다.'
+//           break
+//         case 'NotReadableError':
+//           errorMessage =
+//             '카메라에 접근할 수 없습니다. 다른 앱에서 카메라를 사용 중인지 확인해주세요.'
+//           break
+//         default:
+//           errorMessage = `카메라 오류: ${error.message}`
+//       }
+//     }
 
-    alert(errorMessage)
-    showCamera.value = false
-  }
-}
+//     alert(errorMessage)
+//     showCamera.value = false
+//   }
+// }
 
 /**
  * 카메라 정지
  */
-const stopCamera = () => {
-  if (mediaStream) {
-    mediaStream.getTracks().forEach(track => track.stop())
-    mediaStream = null
-  }
-  showCamera.value = false
-}
+// const stopCamera = () => {
+//   if (mediaStream) {
+//     mediaStream.getTracks().forEach(track => track.stop())
+//     mediaStream = null
+//   }
+//   showCamera.value = false
+// }
 
 /**
  * 이미지 캡처
  */
-const captureImage = () => {
-  if (!videoElement.value) return
+// const captureImage = () => {
+//   if (!videoElement.value) return
 
-  const canvas = document.createElement('canvas')
-  canvas.width = videoElement.value.videoWidth
-  canvas.height = videoElement.value.videoHeight
-  
-  const context = canvas.getContext('2d')
-  if (context) {
-    context.drawImage(videoElement.value, 0, 0, canvas.width, canvas.height)
-    previewUrl.value = canvas.toDataURL('image/jpeg')
-    stopCamera()
-  }
-}
+//   const canvas = document.createElement('canvas')
+//   canvas.width = videoElement.value.videoWidth
+//   canvas.height = videoElement.value.videoHeight
+
+//   const context = canvas.getContext('2d')
+//   if (context) {
+//     context.drawImage(videoElement.value, 0, 0, canvas.width, canvas.height)
+//     previewUrl.value = canvas.toDataURL('image/jpeg')
+//     stopCamera()
+//   }
+// }
 
 /**
  * 금액 추출
  * @param text OCR로 추출된 텍스트
  * @returns 추출된 최대 금액
  */
- const extractAmount = (text: string): number => {
+const extractAmount = (text: string): number => {
   // 금액 관련 키워드 (오인식 케이스 포함)
   const amountKeywords = [
     '금액',
@@ -313,7 +345,7 @@ const captureImage = () => {
     '승인',
     '결제',
     '판매',
-    'Sub Total',  // 영어로 표기된 경우
+    'Sub Total', // 영어로 표기된 경우
     '소계',
     '받은 돈',
     '결제금액',
@@ -322,29 +354,29 @@ const captureImage = () => {
     '할인후금액',
     '과세금액',
     '면세금액',
-    '부가세'
+    '부가세',
   ]
 
   // 금액이 아닌 것으로 예상되는 패턴
   const excludePatterns = [
-    /\d{2,4}-\d{2,4}-\d{2,4}/,    // 전화번호, 카드번호 패턴
-    /\d{4}-\d{2}-\d{2}/,          // 날짜 패턴
-    /\d{3}-\d{2}-\d{5}/,          // 사업자번호 패턴
-    /^\d{8,}$/,                    // 8자리 이상의 긴 숫자
-    /^\d{1,2}$/,                   // 1-2자리 숫자 (수량 등)
-    /\d{2}:\d{2}(?::\d{2})?/,     // 시간 패턴 (15:30 또는 15:30:00)
-    /\d{6}-\d{2}-\d{6}/,          // 사업자등록번호 패턴
-    /주문번호.*\d+/,               // 주문번호
-    /\d+개/,                       // 수량 표시
-    /^\d{4}년/,                    // 연도 표시
-    /가맹점\s*번호.*\d+/           // 가맹점 번호
+    /\d{2,4}-\d{2,4}-\d{2,4}/, // 전화번호, 카드번호 패턴
+    /\d{4}-\d{2}-\d{2}/, // 날짜 패턴
+    /\d{3}-\d{2}-\d{5}/, // 사업자번호 패턴
+    /^\d{8,}$/, // 8자리 이상의 긴 숫자
+    /^\d{1,2}$/, // 1-2자리 숫자 (수량 등)
+    /\d{2}:\d{2}(?::\d{2})?/, // 시간 패턴 (15:30 또는 15:30:00)
+    /\d{6}-\d{2}-\d{6}/, // 사업자등록번호 패턴
+    /주문번호.*\d+/, // 주문번호
+    /\d+개/, // 수량 표시
+    /^\d{4}년/, // 연도 표시
+    /가맹점\s*번호.*\d+/, // 가맹점 번호
   ]
 
   // 숫자를 정제하는 헬퍼 함수
   const cleanNumber = (str: string): number => {
     // 숫자와 쉼표만 추출
     const cleaned = str.replace(/[^0-9,\.]/g, '')
-    
+
     // 소수점이 있는 경우 처리
     if (cleaned.includes('.')) {
       const parts = cleaned.split('.')
@@ -352,14 +384,14 @@ const captureImage = () => {
         return parseInt(parts[0].replace(/,/g, '') + parts[1])
       }
     }
-    
+
     // 끝이 쉼표나 점으로 끝나는 경우
     if (cleaned.endsWith(',') || cleaned.endsWith('.')) {
       return parseInt(cleaned.replace(/[,\.]/g, '') + '000')
     }
-    
+
     const number = parseInt(cleaned.replace(/,/g, ''))
-    
+
     // 1000 미만의 숫자가 나온 경우, 이전 라인들의 숫자들을 확인
     if (number < 1000) {
       const lines = text.split('\n')
@@ -371,7 +403,9 @@ const captureImage = () => {
             const prevLine = lines[currentLineIndex - i]
             const prevNumbers = prevLine.match(/[\d,\.]{3,}/g)
             if (prevNumbers) {
-              const lastPrevNumber = parseInt(prevNumbers[prevNumbers.length - 1].replace(/[,\.]/g, ''))
+              const lastPrevNumber = parseInt(
+                prevNumbers[prevNumbers.length - 1].replace(/[,\.]/g, ''),
+              )
               if (lastPrevNumber >= 1000) {
                 // 이전 라인의 천단위 숫자를 현재 숫자의 천단위로 사용
                 return lastPrevNumber - (lastPrevNumber % 1000) + number
@@ -381,7 +415,7 @@ const captureImage = () => {
         }
       }
     }
-    
+
     return number
   }
 
@@ -390,16 +424,20 @@ const captureImage = () => {
 
   // 각 줄별로 처리
   const lines = text.split('\n').map(line => line.trim())
-  
+
   // 명확한 금액 키워드가 있는 라인 처리
-  lines.forEach((line) => {
+  lines.forEach(line => {
     if (amountKeywords.some(keyword => line.includes(keyword))) {
       // 금액 패턴 매칭
       const matches = line.match(/[\d,\.]{1,}/g) // 1자리 숫자부터 매칭
       if (matches) {
         const number = cleanNumber(matches[matches.length - 1]) // 라인의 마지막 숫자 사용
-        if (!isNaN(number) && number > 0 && number < 10000000 &&
-            !excludePatterns.some(pattern => pattern.test(String(number)))) {
+        if (
+          !isNaN(number) &&
+          number > 0 &&
+          number < 10000000 &&
+          !excludePatterns.some(pattern => pattern.test(String(number)))
+        ) {
           amounts.push(number)
           amountSources.push(line)
         }
@@ -413,32 +451,34 @@ const captureImage = () => {
     console.log(`${amount.toLocaleString()}원 (출처: ${amountSources[index]})`)
   })
   console.log('=====================')
-  
+
   return amounts.length > 0 ? Math.max(...amounts) : 0
 }
 
 /**
  * 이미지 처리 (Tesseract)
  */
- const processImage = async () => {
+const processImage = async () => {
   isProcessing.value = true
   try {
     const worker = await createWorker('kor')
     const result = await worker.recognize(previewUrl.value)
-    
+
     const confidence = result.data.confidence
     const extractedText = result.data.text
 
     // 신뢰도 검증
     if (confidence < 65) {
-      alert(`텍스트 인식 품질이 좋지 않습니다. (신뢰도: ${confidence.toFixed(1)}%)\n다시 촬영해주세요.`)
+      alert(
+        `텍스트 인식 품질이 좋지 않습니다. (신뢰도: ${confidence.toFixed(1)}%)\n다시 촬영해주세요.`,
+      )
       return
     }
 
     // 영수증 키워드 검증
     const receiptKeywords = ['총액', '합계', '금액', '원', '부가세', 'VAT']
-    const hasReceiptKeywords = receiptKeywords.some(keyword => 
-      extractedText.toLowerCase().includes(keyword.toLowerCase())
+    const hasReceiptKeywords = receiptKeywords.some(keyword =>
+      extractedText.toLowerCase().includes(keyword.toLowerCase()),
     )
 
     if (!hasReceiptKeywords) {
@@ -455,7 +495,7 @@ const captureImage = () => {
 
     // 스토어에 데이터 저장
     receiptStore.setReceiptData(maxAmount, confidence, extractedText)
-    
+
     await worker.terminate()
 
     // 더치페이 폼으로 라우팅
@@ -503,33 +543,79 @@ const resetImage = () => {
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
-  cursor: pointer;
-  min-height: 200px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
 }
 
 .upload-placeholder {
+  width: 100%;
+  min-height: 200px;
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
+  align-items: center;
 }
 
 .file-input {
   display: none;
 }
 
-.upload-buttons {
+.input-container {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.divider {
+  color: #666;
+  font-size: 14px;
+  text-align: center;
+  margin: 10px 0;
+}
+
+.manual-input {
+  width: 100%;
   display: flex;
   gap: 10px;
-  justify-content: center;
+}
+
+.amount-field {
+  flex: 1;
+  height: 48px;
+  padding: 0 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+.upload-button,
+.submit-button {
+  height: 48px;
+  padding: 0 24px;
+  border: none;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.upload-button {
+  width: 100%;
+  background-color: #4caf50;
+  color: white;
+}
+
+.submit-button {
+  background-color: #2196f3;
+  color: white;
+  white-space: nowrap;
 }
 
 .preview-container {
   position: relative;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .preview-image {
@@ -540,105 +626,36 @@ const resetImage = () => {
 }
 
 .preview-actions {
-  position: sticky;
+  position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: rgba(255, 255, 255, 0.9);
-  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.95);
+  padding: 15px;
   display: flex;
   gap: 10px;
   justify-content: center;
   z-index: 1;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
 }
 
-.upload-button,
-.camera-button,
 .process-button,
 .reupload-button {
-  padding: 10px 20px;
+  padding: 12px 24px;
   border: none;
   border-radius: 4px;
-  cursor: pointer;
   font-weight: bold;
-  transition: background-color 0.3s;
-}
-
-.upload-button {
-  background-color: #4CAF50;
-  color: white;
-}
-
-.camera-button {
-  background-color: #2196F3;
-  color: white;
+  cursor: pointer;
+  transition: opacity 0.2s;
 }
 
 .process-button {
-  background-color: #FF5722;
+  background-color: #ff5722;
   color: white;
 }
 
 .reupload-button {
-  background-color: #9E9E9E;
+  background-color: #9e9e9e;
   color: white;
-}
-
-.camera-view {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: #000;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.camera-view video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.camera-controls {
-  position: fixed;
-  bottom: 20px;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.5);
-}
-
-.capture-button,
-.cancel-button {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 25px;
-  font-weight: bold;
-  color: white;
-  z-index: 1001;
-}
-
-.capture-button {
-  background-color: #4CAF50;
-}
-
-.cancel-button {
-  background-color: #f44336;
-}
-
-button:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
-button:hover:not(:disabled) {
-  opacity: 0.9;
 }
 </style>
