@@ -576,6 +576,7 @@ const resetImage = () => {
   width: 100%;
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .amount-field {
@@ -608,6 +609,12 @@ const resetImage = () => {
   background-color: #2196f3;
   color: white;
   white-space: nowrap;
+}
+
+@media screen and (max-width: 480px) {
+  .submit-button {
+    width: 100%;
+  }
 }
 
 .preview-container {
