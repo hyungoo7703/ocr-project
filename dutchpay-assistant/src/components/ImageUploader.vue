@@ -43,6 +43,7 @@
               v-model="manualAmount"
               placeholder="금액을 직접 입력하세요"
               class="amount-field"
+              @keyup.enter="handleManualAmount"
             />
             <button @click="handleManualAmount" class="submit-button">
               입력하기

@@ -1,330 +1,711 @@
+<!-- DutchPayForm.vue -->
 <template>
-    <div class="dutch-pay-container">
-      <!-- 금액 확인 및 입력 폼 -->
-      <div v-if="!showResult" class="input-form">
-        <div class="amount-confirm">
-          <h3>추출된 금액 확인</h3>
-          <p class="amount">{{ formatAmount(receiptStore.totalAmount) }}원</p>
-          <p class="confidence">인식 신뢰도: {{ receiptStore.confidence.toFixed(1) }}%</p>
+  <div class="dutch-pay-form">
+    <div v-if="!showResult">
+      <!-- 가이드 섹션 -->
+      <div class="guide-section">
+        <h3>더치페이 가이드</h3>
+        <ul>
+          <li>인원 수를 선택하고 각 참여자의 이름을 입력해주세요</li>
+          <li>비중 템플릿을 선택하거나 직접 비중을 조정할 수 있습니다</li>
+          <li>참여자를 드래그하여 순서를 변경할 수 있습니다</li>
+          <li>각 참여자의 +/- 버튼으로 비중을 조정할 수 있습니다</li>
+        </ul>
+
+        <div class="template-info">
+          <h4>템플릿 설명</h4>
+          <ul>
+            <li>
+              <strong>균등 분배:</strong> 모든 참여자가 동일한 금액을 분담
+            </li>
+            <li>
+              <strong>위에서부터 많이내기:</strong> 위 순서일 수록 더 많은 비중
+            </li>
+            <li>
+              <strong>아래에서부터 많이내기:</strong> 아래 순서일 수록 더 많은
+              비중
+            </li>
+          </ul>
         </div>
-  
-        <form @submit.prevent="calculateDutchPay" class="dutch-pay-form">
-          <div class="form-group">
-            <label for="people">인원 수</label>
-            <input
-              type="number"
-              id="people"
-              v-model="numberOfPeople"
-              min="2"
-              required
-              placeholder="2명 이상 입력해주세요"
-            >
-          </div>
-  
-          <div class="form-group">
-            <label for="account">계좌번호</label>
-            <input
-              type="text"
-              id="account"
-              v-model="accountNumber"
-              required
-              placeholder="계좌번호를 입력해주세요"
-            >
-          </div>
-  
-          <div class="form-group">
-            <label for="bank">은행명</label>
-            <select id="bank" v-model="bankName" required>
-              <option value="">은행을 선택하세요</option>
-              <option v-for="bank in bankList" :key="bank" :value="bank">
-                {{ bank }}
-              </option>
-            </select>
-          </div>
-  
-          <div class="button-group">
-            <button type="button" @click="cancelProcess" class="cancel-button">
-              취소
-            </button>
-            <button type="submit" class="submit-button">
-              더치페이 계산하기
-            </button>
-          </div>
-        </form>
       </div>
-  
-      <!-- 결과 화면 -->
-      <div v-else class="result-view">
-        <h3>더치페이 결과</h3>
-        
-        <div class="result-details">
-          <p class="total-amount">총 금액: {{ formatAmount(receiptStore.totalAmount) }}원</p>
-          <p class="per-person">1인당 금액: {{ formatAmount(amountPerPerson) }}원</p>
-          <div class="account-info">
-            <p>{{ bankName }} {{ accountNumber }}</p>
+      <!-- 총액 및 신뢰도 표시 -->
+      <div class="total-amount-display">
+        <h3>총 금액: {{ formatAmount(receiptStore.totalAmount) }}원</h3>
+        <p class="confidence">
+          인식 신뢰도: {{ receiptStore.confidence.toFixed(1) }}%
+        </p>
+      </div>
+
+      <!-- 인원 수 입력 -->
+      <div class="participants-input">
+        <label>인원 수</label>
+        <div class="number-control">
+          <button
+            @click="decreaseParticipants"
+            :disabled="participants.length <= 2"
+          >
+            -
+          </button>
+          <span>{{ participants.length }}명</span>
+          <button
+            @click="increaseParticipants"
+            :disabled="participants.length >= 10"
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      <!-- 비중 설정 템플릿 -->
+      <div class="weight-template">
+        <label>비중 템플릿</label>
+        <select v-model="selectedTemplate" @change="applyTemplate">
+          <option value="equal">균등 분배</option>
+          <option value="senior">위에서부터 많이내기</option>
+          <option value="junior">아래서부터 많이내기</option>
+        </select>
+      </div>
+
+      <!-- 참여자 비중 설정 -->
+      <div class="participants-list">
+        <draggable v-model="participants" item-key="id" handle=".handle">
+          <template #item="{ element }">
+            <div class="participant-item">
+              <div class="handle">⋮⋮</div>
+              <input
+                v-model="element.name"
+                placeholder="이름"
+                class="name-input"
+              />
+              <div class="weight-control">
+                <button
+                  @click="decreaseWeight(element)"
+                  :disabled="element.weight <= 1"
+                >
+                  -
+                </button>
+                <span>{{ element.weight }}</span>
+                <button
+                  @click="increaseWeight(element)"
+                  :disabled="element.weight >= 5"
+                >
+                  +
+                </button>
+              </div>
+              <div class="share-amount">
+                {{ formatAmount(element.share) }}원
+              </div>
+            </div>
+          </template>
+        </draggable>
+      </div>
+
+      <!-- 계좌 정보 입력 -->
+      <div class="account-info">
+        <select v-model="bankName" class="bank-select">
+          <option value="">은행 선택</option>
+          <option v-for="bank in bankList" :key="bank" :value="bank">
+            {{ bank }}
+          </option>
+        </select>
+        <input
+          v-model="accountNumber"
+          placeholder="계좌번호 입력"
+          class="account-input"
+        />
+      </div>
+
+      <!-- 액션 버튼 -->
+      <div class="action-buttons">
+        <button @click="goBack" class="cancel-button">취소</button>
+        <button @click="complete" class="complete-button">완료</button>
+      </div>
+    </div>
+
+    <!-- 결과 화면 -->
+    <div v-else class="result-view">
+      <div class="result-card">
+        <h3 class="result-title">더치페이 결과</h3>
+
+        <div class="result-summary">
+          <p class="total-amount">
+            총 금액: {{ formatAmount(receiptStore.totalAmount) }}원
+          </p>
+          <p class="participant-count">
+            참여자 수: {{ participants.length }}명
+          </p>
+        </div>
+
+        <div class="shares-list">
+          <h4>정산 금액</h4>
+          <div v-for="p in participants" :key="p.id" class="share-item">
+            <span class="name">{{ p.name }}</span>
+            <span class="amount">{{ formatAmount(p.share) }}원</span>
           </div>
         </div>
-  
-        <div class="share-message" ref="messageRef">
-          {{ generateMessage() }}
+
+        <div class="account-info">
+          <p><strong>계좌 정보</strong></p>
+          <p>{{ bankName }} {{ accountNumber }}</p>
         </div>
-  
-        <div class="action-buttons">
-          <button @click="copyToClipboard" class="copy-button">
-            복사하기
-          </button>
-          <button @click="shareResult" class="share-button">
-            공유하기
-          </button>
-          <button @click="resetForm" class="reset-button">
-            다시하기
-          </button>
+
+        <div class="result-actions">
+          <button @click="copyToClipboard" class="copy-button">복사하기</button>
+          <button @click="resetForm" class="reset-button">다시하기</button>
         </div>
       </div>
     </div>
+  </div>
 </template>
-  
-<script setup lang="ts">
-  import { ref, computed } from 'vue'
-  import { useRouter } from 'vue-router'
-  import { useReceiptStore } from '@/stores/receiptStore'
-  
-  const receiptStore = useReceiptStore()
-  const showResult = ref(false)
-  const numberOfPeople = ref<number>(2)
-  const accountNumber = ref('')
-  const bankName = ref('')
-  const messageRef = ref<HTMLDivElement | null>(null)
-  
-  const router = useRouter()
 
-  // 은행 목록
-  const bankList = [
-    '국민은행',
-    '신한은행',
-    '우리은행',
-    '하나은행',
-    '농협은행',
-    '카카오뱅크',
-    '토스뱅크',
-    // ... 필요한 은행 추가
+<script setup lang="ts">
+import { ref, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useReceiptStore } from '../stores/receiptStore'
+/**
+ * 참고: https://github.com/SortableJS/vue.draggable.next
+ */
+import draggable from 'vuedraggable'
+
+interface Participant {
+  id: number
+  name: string
+  weight: number
+  share: number
+}
+
+const router = useRouter()
+const receiptStore = useReceiptStore()
+
+// 상태 관리
+const participants = ref<Participant[]>([])
+const selectedTemplate = ref('equal')
+const bankName = ref('')
+const accountNumber = ref('')
+const showResult = ref(false)
+
+// 은행 목록
+const bankList = [
+  '국민은행',
+  '신한은행',
+  '우리은행',
+  '하나은행',
+  '농협은행',
+  '카카오뱅크',
+  '토스뱅크',
+  // 필요시 추가..
+]
+
+// participants 변경 감지
+watch(
+  () => participants.value,
+  newParticipants => {
+    // 현재 템플릿에 따라 비중 재계산
+    if (selectedTemplate.value === 'senior') {
+      newParticipants.forEach((p, index) => {
+        p.weight = newParticipants.length - index
+      })
+    } else if (selectedTemplate.value === 'junior') {
+      newParticipants.forEach((p, index) => {
+        p.weight = index + 1
+      })
+    }
+    calculateShares()
+  },
+  { deep: true },
+)
+
+onMounted(() => {
+  // 기본 2명으로 시작
+  participants.value = [
+    { id: 1, name: '참여자 1', weight: 1, share: 0 },
+    { id: 2, name: '참여자 2', weight: 1, share: 0 },
   ]
-  
-  // 1인당 금액 계산
-  const amountPerPerson = computed(() => {
-    const totalAmount = receiptStore.totalAmount
-    if (totalAmount === null || !numberOfPeople.value) return 0
-    return Math.ceil(totalAmount / numberOfPeople.value)
+  calculateShares()
+})
+
+/**
+ * 참여자 추가/제거
+ */
+const increaseParticipants = () => {
+  const newId = participants.value.length + 1
+  participants.value.push({
+    id: newId,
+    name: `참여자 ${newId}`,
+    weight: 1,
+    share: 0,
   })
-  
-  /**
-   * 금액 포맷팅
-   * @param amount 
-   * @returns 포맷팅된 금액
-   */
-  const formatAmount = (amount: number | null): string => {
-    if (amount === null) return '0'
-    return amount.toLocaleString()
+  calculateShares()
+}
+
+/**
+ * 참여자 제거
+ */
+const decreaseParticipants = () => {
+  participants.value.pop()
+  calculateShares()
+}
+
+/**
+ * 비중 조정(증가)
+ * @param participant
+ */
+const increaseWeight = (participant: Participant) => {
+  participant.weight++
+  calculateShares()
+}
+
+/**
+ * 비중 조정(감소)
+ * @param participant
+ */
+const decreaseWeight = (participant: Participant) => {
+  participant.weight--
+  calculateShares()
+}
+
+/**
+ * 금액 계산
+ */
+const calculateShares = () => {
+  const totalWeight = participants.value.reduce((sum, p) => sum + p.weight, 0)
+  const totalAmount = receiptStore.totalAmount || 0
+
+  participants.value.forEach(p => {
+    p.share = Math.floor((totalAmount * p.weight) / totalWeight)
+  })
+}
+
+/**
+ * 템플릿 적용
+ */
+const applyTemplate = () => {
+  switch (selectedTemplate.value) {
+    case 'senior':
+      participants.value.forEach((p, i) => {
+        p.weight = participants.value.length - i
+      })
+      break
+    case 'junior':
+      participants.value.forEach((p, i) => {
+        p.weight = i + 1
+      })
+      break
+    default:
+      participants.value.forEach(p => {
+        p.weight = 1
+      })
   }
-  
-  /**
-   * 공유 메세지 생성
-   * @returns 공유할 메세지
-   */
-  const generateMessage = (): string => {
-    return `[더치페이 정보]
-            총 금액: ${formatAmount(receiptStore.totalAmount)}원
-            인원: ${numberOfPeople.value}명
-            1인당: ${formatAmount(amountPerPerson.value)}원
-            계좌정보: ${bankName.value} ${accountNumber.value}`
-  }
-  
-  /**
-   * 더치페이 계산
-   */
-  const calculateDutchPay = () => {
-    if (numberOfPeople.value < 2) {
-      alert('2명 이상 입력해주세요')
-      return
-    }
-    showResult.value = true
-  }
-  
-  /**
-   * 클립보드 복사
-   */
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(generateMessage())
-      alert('클립보드에 복사되었습니다!')
-    } catch (err) {
-      alert('복사에 실패했습니다.')
-    }
-  }
-  
-  /**
-   * 공유하기
-   * (우선은 navigator의 share → 추후 카카오톡 공유하기로 변경.)
-   */
-  const shareResult = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: '더치페이 정보',
-          text: generateMessage()
-        })
-      } catch (err) {
-        console.error('공유 실패:', err)
-      }
-    } else {
-      alert('공유하기가 지원되지 않는 브라우저입니다.')
-    }
-  }
-  
-  /**
-   * 취소
-   */
-  const cancelProcess = () => {
+  calculateShares()
+}
+
+/**
+ * 금액 포맷팅
+ * @param amount
+ */
+const formatAmount = (amount: number | null): string => {
+  if (amount === null) return '0'
+  return amount.toLocaleString()
+}
+
+/**
+ * 이전 페이지로 이동
+ */
+const goBack = () => {
+  if (confirm('정말 취소하시겠습니까?')) {
     receiptStore.reset()
-    router.push('/');
+    router.push('/')
   }
-  
-  /**
-   * 폼 초기화
-   */
-  const resetForm = () => {
-    showResult.value = false
-    numberOfPeople.value = 2
-    accountNumber.value = ''
-    bankName.value = ''
-    router.push('/');
+}
+
+/**
+ * 더치페이 완료
+ */
+const complete = () => {
+  // 입력 검증
+  if (participants.value.some(p => !p.name.trim())) {
+    alert('모든 참여자의 이름을 입력해주세요.')
+    return
   }
+
+  if (!bankName.value) {
+    alert('은행을 선택해주세요.')
+    return
+  }
+
+  if (!accountNumber.value) {
+    alert('계좌번호를 입력해주세요.')
+    return
+  }
+
+  // 결과 화면으로 전환
+  showResult.value = true
+}
+
+/**
+ * 클립보드에 복사
+ */
+const copyToClipboard = () => {
+  const message = generateShareMessage()
+  navigator.clipboard
+    .writeText(message)
+    .then(() => {
+      alert('정산 정보가 클립보드에 복사되었습니다!')
+    })
+    .catch(() => {
+      alert('클립보드 복사에 실패했습니다.')
+    })
+}
+
+/**
+ * 공유 메시지 생성
+ */
+const generateShareMessage = (): string => {
+  const totalAmount = receiptStore.totalAmount
+  const lines = [
+    '[더치페이 정보]',
+    `총 금액: ${formatAmount(totalAmount)}원`,
+    `참여자 수: ${participants.value.length}명\n`,
+    '■ 정산 금액',
+    ...participants.value.map(p => `${p.name}: ${formatAmount(p.share)}원`),
+    '\n■ 계좌 정보',
+    `${bankName.value} ${accountNumber.value}`,
+  ]
+
+  return lines.join('\n')
+}
+
+/**
+ * 다시하기
+ */
+const resetForm = () => {
+  showResult.value = false
+  participants.value = [
+    { id: 1, name: '참여자 1', weight: 1, share: 0 },
+    { id: 2, name: '참여자 2', weight: 1, share: 0 },
+  ]
+  selectedTemplate.value = 'equal'
+  bankName.value = ''
+  accountNumber.value = ''
+  calculateShares()
+}
 </script>
-  
+
 <style scoped>
-  .dutch-pay-container {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 20px;
+.dutch-pay-form {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.guide-section {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.guide-section h3 {
+  color: #2c3e50;
+  margin-bottom: 15px;
+}
+
+.guide-section ul {
+  padding-left: 20px;
+  margin-bottom: 20px;
+}
+
+.guide-section li {
+  margin-bottom: 8px;
+  color: #666;
+}
+
+.template-info {
+  background-color: white;
+  border-radius: 6px;
+  padding: 15px;
+  margin-top: 15px;
+}
+
+.template-info h4 {
+  color: #2c3e50;
+  margin-bottom: 10px;
+}
+
+.template-info strong {
+  color: #2196f3;
+}
+
+.total-amount-display {
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.total-amount-display h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 24px;
+}
+
+.confidence {
+  margin: 10px 0 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.participants-input,
+.weight-template {
+  margin-bottom: 20px;
+}
+
+.participants-input label,
+.weight-template label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.number-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+}
+
+.number-control button {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 20px;
+  background-color: #4caf50;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.number-control span {
+  font-size: 18px;
+  min-width: 60px;
+  text-align: center;
+}
+
+select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  background-color: white;
+}
+
+.participants-list {
+  margin: 20px 0;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.participant-item {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  gap: 15px;
+  border-bottom: 1px solid #eee;
+  background-color: white;
+}
+
+.handle {
+  cursor: move;
+  color: #999;
+  padding: 0 10px;
+}
+
+.name-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.weight-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.weight-control button {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 15px;
+  background-color: #2196f3;
+  color: white;
+  cursor: pointer;
+}
+
+.share-amount {
+  min-width: 100px;
+  text-align: right;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.account-info {
+  margin: 20px 0;
+  margin-bottom: 30px;
+  display: flex;
+  gap: 10px;
+}
+
+.bank-select {
+  width: 150px;
+}
+
+.account-input {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.cancel-button,
+.complete-button {
+  flex: 1;
+  padding: 15px;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.cancel-button {
+  background-color: #6c757d;
+  color: white;
+}
+
+.complete-button {
+  background-color: #4caf50;
+  color: white;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+button:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+@media (max-width: 480px) {
+  .participant-item {
+    flex-wrap: wrap;
   }
-  
-  .amount-confirm {
-    background-color: #f8f9fa;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-  }
-  
-  .amount {
-    font-size: 24px;
-    font-weight: bold;
-    color: #2c3e50;
-  }
-  
-  .confidence {
-    color: #666;
-    font-size: 14px;
-  }
-  
-  .dutch-pay-form {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-  
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .form-group label {
-    font-weight: bold;
-    color: #2c3e50;
-  }
-  
-  .form-group input,
-  .form-group select {
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 16px;
-  }
-  
-  .button-group {
-    display: flex;
-    gap: 10px;
-    margin-top: 20px;
-  }
-  
-  .cancel-button,
-  .submit-button,
-  .copy-button,
-  .share-button,
-  .reset-button {
-    padding: 12px 24px;
-    border: none;
-    border-radius: 4px;
-    font-weight: bold;
-    cursor: pointer;
-    flex: 1;
-  }
-  
-  .cancel-button {
-    background-color: #6c757d;
-    color: white;
-  }
-  
-  .submit-button {
-    background-color: #4CAF50;
-    color: white;
-  }
-  
-  .result-view {
-    text-align: center;
-  }
-  
-  .result-details {
-    background-color: #f8f9fa;
-    padding: 20px;
-    border-radius: 8px;
-    margin: 20px 0;
-  }
-  
-  .share-message {
-    background-color: #fff;
-    padding: 20px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    margin: 20px 0;
-    white-space: pre-line;
+
+  .share-amount {
+    width: 100%;
     text-align: left;
+    margin-top: 10px;
   }
-  
-  .action-buttons {
-    display: flex;
-    gap: 10px;
+
+  .account-info {
+    flex-direction: column;
   }
-  
-  .copy-button {
-    background-color: #2196F3;
-    color: white;
+
+  .bank-select {
+    width: 100%;
   }
-  
-  .share-button {
-    background-color: #4CAF50;
-    color: white;
-  }
-  
-  .reset-button {
-    background-color: #6c757d;
-    color: white;
-  }
-  
-  @media (max-width: 480px) {
-    .button-group,
-    .action-buttons {
-      flex-direction: column;
-    }
-  }
+}
+
+.result-view {
+  padding: 20px;
+}
+
+.result-card {
+  background: white;
+  border-radius: 8px;
+  padding: 30px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.result-title {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.result-summary {
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+}
+
+.shares-list,
+.account-info {
+  margin-bottom: 30px;
+}
+
+.shares-list h4,
+.account-info h4 {
+  margin-bottom: 15px;
+  color: #2c3e50;
+}
+
+.share-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.share-item .amount {
+  font-weight: bold;
+  color: #2196f3;
+}
+
+.share-item .weight {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.result-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.copy-button,
+.reset-button {
+  flex: 1;
+  padding: 15px;
+  border: none;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.copy-button {
+  background-color: #2196f3;
+  color: white;
+}
+
+.reset-button {
+  background-color: #6c757d;
+  color: white;
+}
 </style>
