@@ -3,7 +3,8 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: ['main']
-
+    paths:
+      - 'dutchpay-assistant/**'
   workflow_dispatch:
 
 permissions:
@@ -13,9 +14,6 @@ permissions:
 
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -30,11 +28,15 @@ jobs:
           
       - name: Install dependencies
         run: npm install
-        working-directory: ./dutchpay-assistant  # 작업 디렉토리 지정
+        working-directory: ./dutchpay-assistant
         
       - name: Build
         run: npm run build
-        working-directory: ./dutchpay-assistant  # 작업 디렉토리 지정
+        working-directory: ./dutchpay-assistant
+        
+      - name: Check build output
+        run: ls -R ./dutchpay-assistant/dist
+        working-directory: ./
         
       - name: Setup Pages
         uses: actions/configure-pages@v3
@@ -42,8 +44,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dutchpay-assistant/dist'  # dist 경로 수정
+          path: './dutchpay-assistant/dist'
           
       - name: Deploy to GitHub Pages
-        id: deployment
         uses: actions/deploy-pages@v3
