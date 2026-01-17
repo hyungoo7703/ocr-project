@@ -1,101 +1,67 @@
-# 🚀 ocr-project
-**더치페이 도우미(더드미)**  
-[![Vue.js](https://img.shields.io/badge/Vue.js-3.5.12-brightgreen)](https://vuejs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.1-blue)](https://www.typescriptlang.org/)
+# 💰 더드미 (Dutch Pay Assistant)
 
-## 📌 프로젝트 배포(GitHub Pages)
+> **"영수증만 찍으세요, 복잡한 정산은 제가 할게요."**  
+> 웹에서도 네이티브 앱처럼 동작하는 **OCR 기반 더치페이 서비스**입니다.
 
-### 배포 ☞ [https://hyungoo7703.github.io/ocr-project/](https://hyungoo7703.github.io/ocr-project/)
+![Project Preview](./public/preview-placeholder.png) 
+<!-- 👆 여기에 캡처한 이미지를 넣어주세요! (예: public 폴더에 넣고 경로 연결) -->
 
-> #### 왜 백엔드 구현 없이 Frontend, Github Pages 배포만 선택하였는가?
-**1. 클라이언트 사이드 기능에 집중하기 위함**
-+ OCR 처리, 더치페이 계산 등 핵심 기능이 모두 클라이언트에서 실행 가능
-+ Vue 3와 TypeScript를 활용한 프론트엔드 개발
-+ Tesseract.js를 통한 브라우저 기반 이미지 처리 <br>
+## ✨ Key Features (핵심 기능)
 
-**2. 빠른 프로토타입 구현**
-+ 복잡한 백엔드 구성 없이 핵심 기능 검증 가능
-+ 사용자 데이터 저장이 필요 없는 단순 계산 기능 중심
-+ 즉각적인 기능 테스트와 배포가 가능 <br>
+이 프로젝트는 **"웹의 한계를 넘는 사용자 경험(UX)"**을 목표로 개발되었습니다.
 
-**3. 간단한 배포 프로세스**
-+ 데이터베이스나 서버 설정 없이 정적 웹사이트로 구현 가능
-+ GitHub Actions를 통한 자동 배포 지원
+### 1. 📸 Native-like Camera Experience
+- **웹 브라우저(Web API)**만으로 네이티브 카메라 UI를 완벽하게 구현했습니다.
+- **전체 화면 뷰파인더**, 셔터 버튼, 앨범 선택 등 직관적인 인터페이스를 제공합니다.
+- 모바일 환경(`facingMode: environment`)에 최적화되어 있습니다.
 
-## 📌 프로젝트 기획 의도
-+ 일상적으로 자주 발생하는 더치페이 상황을 더 편리하게 해결하기 위해 개발 <br>
-(**더치페이 자체는 쉬운 계산이지만, 모임이나 일상만남에서 금액과 계좌번호를 일일히 적어 송금요청을 하는것은 불편하다.**)
-+ 단순 n분의 1 계산이 아닌, 상황에 맞는 비중 설정이 가능한 실용적인 도구를 만들고자 함
+### 2. ⚡️ Smart OCR & Image Processing
+- **Tesseract.js**를 활용하여 서버 없이 **클라이언트 측에서 실시간**으로 텍스트를 인식합니다.
+- **Canvas Image Processing**: OCR 인식률을 높이기 위해 촬영된 이미지를 **고대비/흑백(Grayscale & High Contrast)**으로 자동 보정합니다.
 
-## 📌 넣고자 하는 기능
-+ 영수증 인식 기능
-+ 비중을 선택했을 경우 드래그앤드롭 기능으로 편의성 증대
-+ 결과를 한눈에 확인하고, 복사하면 바로 전달가능한 메세지로 만들어주기
-+ 모바일의 경우 영수증 카메라 촬영이 가능하도록 설계(결과적으로 실패)
+### 3. 📱 Progressive Web App (PWA)
+- **설치 가능한 웹앱**: 홈 화면에 추가하여 앱처럼 사용할 수 있습니다.
+- 스플래시 스크린, 테마 컬러, 모바일 뷰포트 최적화(`user-scalable=no`)가 적용되어 있습니다.
 
-> #### 모바일에서 카메라 촬영기능을 왜 실패하였는가? ☞ [#1 Mobile 환경에서 카메라 촬영 불가 현상](https://github.com/hyungoo7703/ocr-project/issues/1)
+### 4. 🎨 Modern Design System
+- **Mobile-First**: 모바일 사용성을 최우선으로 고려한 레이아웃.
+- **Micro-Interactions**: 부드러운 화면 전환(Transition)과 정산 결과 영수증 효과.
+- **Web Share API**: 카카오톡/문자 등 기본 공유 기능과 연동됩니다.
 
-## 📌 코드 작성방향
-+ Vue, React 등 최신 프레임워크의 공식 문서나 예제에서도 세미콜론 생략이 보임 <br>
-  코드의 가독성과 간결성 향상을 위해 요즘 트랜드를 따라가 본다.
-+ 필수 기능에 집중한 경량화된 구현을 목표로 한다.
+---
 
-## 📌 프로젝트 하이라이트
+## 🛠 Tech Stack
 
-### 1. 더치페이 도우미 진입
-![image](https://github.com/user-attachments/assets/7196c988-d0f9-482c-b179-d26e2953d15d)
-사용자 친화적 UI(명확한 버튼 구분과 시각적 피드백, 모바일 환경을 고려한 반응형 디자인) <br>
-금액을 직접 입력시에는 바로 더치페이 폼으로 넘어간다.
+| Category | Technology |
+|----------|------------|
+| **Core** | Vue 3, TypeScript, Vite |
+| **State** | Pinia |
+| **Styling** | Modern CSS Variables (Design System) |
+| **OCR** | Tesseract.js |
+| **PWA** | Vite-Plugin-PWA |
 
-### 2. 영수증 업로드 예시(인터넷에서 영수증을 하나 가져왔다.)
-![image](https://github.com/user-attachments/assets/50be27e7-74b7-4263-9090-47eef1a4514d)
-텍스트 추출 버튼이 영수증 맨 아래로 있지 않고, 편하게 누를 수 있도록 사용자 친화적 UI를 고려 <br>
-Tesseract.js를 활용하여 영수증의 총액을 자동으로 추출함으로써 사용자 편의성 증대하였다.
+---
 
-### 3. 텍스트 추출완료 및 더치페이 폼 진입
-![image](https://github.com/user-attachments/assets/e01fbaab-468c-4483-a6e8-92fe4b6d6d65)
-> #### 주요기능정리
+## 🚀 Getting Started
 
-**총액 및 신뢰도 표시**
-+ OCR로 인식된 금액 표시
-+ 인식 신뢰도 퍼센트 표시 <br>
+### Installation
+```bash
+# 1. Clone the repository
+git clone [repository-url]
 
-**인원 관리**
-+ +/- 버튼으로 인원 수 조절
-+ 2명~10명까지 설정 가능 <br>
+# 2. Install dependencies
+npm install
 
-**비중 설정 기능**
-+ 균등 분배
-+ 위 순서별
-+ 아래 순서별 <br>
-
-**참여자 관리**
-+ 참여자별 이름 입력
-+ 개별 비중 조절 가능
-+ 드래그앤드롭으로 순서 변경(비중 템플릿 설정에 따라 자동계산 구현) <br>
-
-**계좌 정보 입력**
-+ 은행 선택
-+ 계좌번호 입력
-
-### 4. 더치페이 정보 입력
-![image](https://github.com/user-attachments/assets/c3a59bee-d39d-45f9-8975-1273dcf5e095)
-
-### 5. 더치페이 결과
-![image](https://github.com/user-attachments/assets/d6a4d631-0d4f-4fdc-8dca-f48e6a47adf3)
-결과를 한눈에 볼 수 있도록 사용자 친화적 UI를 구성
-
-> #### 복사하기 클릭시 복사되는 메세지 템플릿
+# 3. Start development server
+npm run dev
 ```
-[더치페이 정보]
-총 금액: 100,000원
-참여자 수: 3명
 
-■ 정산 금액
-홍길동: 16,666원
-제일많이내는사람: 66,666원
-임꺽정: 16,666원
+### Mobile Test
+1. `npm run dev -- --host` 명령어로 실행하세요.
+2. 같은 와이파이에 연결된 휴대폰으로 `http://[PC-IP]:5173`에 접속하세요.
+3. 카메라 권한을 허용하면 바로 테스트 가능합니다.
 
-■ 계좌 정보
-하나은행 1110-2093-0409398
-```
+---
+
+## 📝 License
+This project is licensed under the MIT License.
