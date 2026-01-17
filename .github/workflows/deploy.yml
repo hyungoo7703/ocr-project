@@ -12,8 +12,15 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,16 +34,12 @@ jobs:
           cache-dependency-path: './dutchpay-assistant/package-lock.json'
           
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         working-directory: ./dutchpay-assistant
         
       - name: Build
         run: npm run build
         working-directory: ./dutchpay-assistant
-        
-      - name: Check build output
-        run: ls -R ./dutchpay-assistant/dist
-        working-directory: ./
         
       - name: Setup Pages
         uses: actions/configure-pages@v3
@@ -47,4 +50,5 @@ jobs:
           path: './dutchpay-assistant/dist'
           
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v3
