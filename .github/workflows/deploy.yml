@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy to GitHub Pages (Legacy Branch)
 
 on:
   push:
@@ -9,16 +9,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  contents: write
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -38,15 +32,10 @@ jobs:
       - name: Build
         run: npm run build
         working-directory: ./dutchpay-assistant
-        
-      - name: Setup Pages
-        uses: actions/configure-pages@v3
-        
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: './dutchpay-assistant/dist'
-          
+
+      # Alternative Deployment Method: Push to gh-pages branch directly
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v3
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: ./dutchpay-assistant/dist
+          branch: gh-pages
