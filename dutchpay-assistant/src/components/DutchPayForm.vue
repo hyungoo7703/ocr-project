@@ -163,15 +163,60 @@ watch(() => participants.value, (newParticipants) => {
     newParticipants.forEach((p, index) => p.weight = index + 1)
   }
   calculateShares()
+  saveSettings()
 }, { deep: true })
 
+watch([bankName, accountNumber], () => {
+  saveSettings()
+})
+
 onMounted(() => {
-  participants.value = [
-    { id: 1, name: '나', weight: 1, share: 0 },
-    { id: 2, name: '친구1', weight: 1, share: 0 },
-  ]
+  loadSettings()
+  // Ensure at least 2 participants exist if storage was empty or weird
+  if (participants.value.length < 2) {
+    participants.value = [
+      { id: 1, name: '나', weight: 1, share: 0 },
+      { id: 2, name: '친구1', weight: 1, share: 0 },
+    ]
+  }
   calculateShares()
 })
+
+const saveSettings = () => {
+  const settings = {
+    bankName: bankName.value,
+    accountNumber: accountNumber.value,
+    participants: participants.value.map(p => ({ 
+      id: p.id, 
+      name: p.name, 
+      weight: p.weight // Also save weights preference
+    }))
+  }
+  localStorage.setItem('dutchpay_settings', JSON.stringify(settings))
+}
+
+const loadSettings = () => {
+  const saved = localStorage.getItem('dutchpay_settings')
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved)
+      if (parsed.bankName) bankName.value = parsed.bankName
+      if (parsed.accountNumber) accountNumber.value = parsed.accountNumber
+      if (parsed.participants && Array.isArray(parsed.participants)) {
+         // Restore participants, but verify structure
+         participants.value = parsed.participants.map((p: any) => ({
+           id: p.id,
+           name: p.name || '이름없음',
+           weight: p.weight || 1,
+           share: 0 // Will be recalculated
+         }))
+      }
+    } catch (e) {
+      console.error('Failed to load settings', e)
+    }
+  }
+}
+
 
 const increaseParticipants = () => {
   const newId = participants.value.length + 1
@@ -420,15 +465,27 @@ const resetForm = () => {
 /* Receipt Paper Style */
 .receipt-paper {
   background: white;
-  margin: 20px 0;
+  margin: 20px 0 40px; /* More bottom margin for the jagged edge */
   filter: drop-shadow(0 4px 15px rgba(0,0,0,0.08));
   position: relative;
-  /* Serrated edge effect using radial gradient */
-  --mask: radial-gradient(10px at 50% 12px, #000 99%, #0000 101%) 50% calc(100% - 12px)/20px 100% repeat-x;
-  -webkit-mask: var(--mask);
-  mask: var(--mask);
-  padding-bottom: 20px;
+  /* Remove buggy mask */
 }
+
+/* Jagged Edge using Pseudo-element (Safer) */
+.receipt-paper::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -10px;
+  width: 100%;
+  height: 20px;
+  background-image: linear-gradient(135deg, white 50%, transparent 50%),
+                    linear-gradient(45deg, transparent 50%, white 50%);
+  background-position: top left, top left;
+  background-size: 20px 20px;
+  background-repeat: repeat-x;
+}
+
 .paper-content { padding: 40px 30px 20px; text-align: center; }
 .paper-content h3 { margin-bottom: 8px; font-size: 20px; font-weight: 800; }
 .paper-content .date { color: var(--text-tertiary); font-size: 13px; margin-bottom: 24px; letter-spacing: 0.5px; }
